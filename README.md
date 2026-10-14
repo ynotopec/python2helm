@@ -17,7 +17,6 @@ FROM nvidia/cuda:12.2.2-cudnn8-devel-ubuntu22.04
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 \
     python3-pip \
-    git \
     && rm -rf /var/lib/apt/lists/*
 
 # Définir le répertoire de travail
@@ -26,11 +25,15 @@ WORKDIR /app
 # Copier les fichiers requirements.txt (si tu en as un)
 COPY requirements.txt .
 
-# Installer les dépendances Python
+# Installer les dépendances Python (versions épinglées)
 RUN pip3 install --no-cache-dir -r requirements.txt
 
-# Copier le code source
+# Copier le code source (voir .dockerignore pour exclure le superflu)
 COPY . .
+
+# Exécuter en utilisateur non-root
+RUN useradd --create-home appuser
+USER appuser
 
 # Définir la commande d'exécution
 CMD ["python3", "main.py"] # Remplace "main.py" par ton script principal
@@ -39,20 +42,21 @@ CMD ["python3", "main.py"] # Remplace "main.py" par ton script principal
 **Explication du Dockerfile:**
 
 *   `FROM nvidia/cuda:12.2.2-cudnn8-devel-ubuntu22.04`: Utilise une image de base NVIDIA CUDA.  Adapte la version à ta configuration.  Cette image inclut déjà CUDA et cuDNN.
-*   `RUN apt-get update && apt-get install ...`: Installe les dépendances système nécessaires (Python, pip, git).
+*   `RUN apt-get update && apt-get install ...`: Installe les dépendances système nécessaires (Python, pip).
 *   `WORKDIR /app`: Définit le répertoire de travail dans le conteneur.
 *   `COPY requirements.txt .`: Copie le fichier `requirements.txt` (si tu en as un) dans le conteneur.
-*   `RUN pip3 install ...`: Installe les dépendances Python spécifiées dans `requirements.txt`.
-*   `COPY . .`: Copie tout le code source de ton application dans le conteneur.
+*   `RUN pip3 install ...`: Installe les dépendances Python spécifiées dans `requirements.txt` (épinglées, par ex. `numpy==2.1.0`).
+*   `COPY . .`: Copie tout le code source de ton application dans le conteneur. Ajoute un `.dockerignore` (`.git`, `__pycache__/`, `*.pyc`, `venv/`) pour garder l'image légère.
+*   `USER appuser`: Exécute le processus en utilisateur non-root — bonne pratique de sécurité minimale.
 *   `CMD ["python3", "main.py"]`: Définit la commande à exécuter lorsque le conteneur démarre.
 
-**2. requirements.txt (exemple)**
+**2. requirements.txt (exemple — dépendances épinglées)**
 
 ```
-numpy
-torch
-torchvision
-# Ajoute tes autres dépendances ici
+numpy==2.1.0
+torch==2.5.1
+torchvision==0.20.1
+# Ajoute tes autres dépendances ici, toujours épinglées
 ```
 
 **3. Helm Chart (Structure)**
